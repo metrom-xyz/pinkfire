@@ -105,7 +105,7 @@ export function BurnChart({ data, isLoading = false }: BurnChartProps) {
           <div className="text-center">
             <p className="text-xl text-[#8B8B8B] mb-2">No burn data yet</p>
             <p className="text-sm text-[#8B8B8B]">
-              Tracking burns starting from December 28, 2025
+              Tracking burns starting from December 29, 2025
             </p>
           </div>
         </div>

@@ -2,6 +2,7 @@ import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
 import type { DailyBurn, BurnTransaction } from '@/types';
+import { CONSTANTS } from './constants';
 
 const DB_PATH = path.join(process.cwd(), 'data', 'burns.db');
 
@@ -14,7 +15,7 @@ export function getDb(): Database.Database {
     if (!fs.existsSync(dataDir)) {
       fs.mkdirSync(dataDir, { recursive: true });
     }
-    
+
     db = new Database(DB_PATH);
     db.pragma('journal_mode = WAL');
     initializeSchema();
@@ -58,9 +59,10 @@ export function getDailyBurns(): DailyBurn[] {
   const database = getDb();
   const stmt = database.prepare(`
     SELECT * FROM daily_burns
+    WHERE date >= ?
     ORDER BY date ASC
   `);
-  return stmt.all() as DailyBurn[];
+  return stmt.all(CONSTANTS.START_DATE) as DailyBurn[];
 }
 
 export function getDailyBurnByDate(date: string): DailyBurn | undefined {
@@ -161,8 +163,9 @@ export function getTotalBurned(): number {
   const database = getDb();
   const stmt = database.prepare(`
     SELECT SUM(uni_amount) as total FROM burn_transactions
+    WHERE timestamp >= ?
   `);
-  const result = stmt.get() as { total: number | null };
+  const result = stmt.get(CONSTANTS.START_DATE) as { total: number | null };
   return result.total || 0;
 }
 
@@ -181,9 +184,9 @@ export function getHistoricalUsdValue(): number {
   const database = getDb();
   const stmt = database.prepare(`
     SELECT SUM(usd_value) as total FROM burn_transactions
-    WHERE usd_value IS NOT NULL
+    WHERE usd_value IS NOT NULL AND timestamp >= ?
   `);
-  const result = stmt.get() as { total: number | null };
+  const result = stmt.get(CONSTANTS.START_DATE) as { total: number | null };
   return result.total || 0;
 }
 

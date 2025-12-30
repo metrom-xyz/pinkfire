@@ -69,7 +69,10 @@ export async function syncBurnData(): Promise<SyncResult> {
     }
 
     // Get all transactions and recalculate daily burns
-    const allTransactions = getBurnTransactions();
+    // Filter out transactions before start date
+    const allTransactions = getBurnTransactions().filter(
+      (tx) => tx.timestamp >= CONSTANTS.START_DATE
+    );
     const groupedByDate = groupTransactionsByDate(allTransactions);
 
     // Sort dates
