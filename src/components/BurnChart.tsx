@@ -85,7 +85,7 @@ function CustomTooltip({ active, payload, showUsd }: CustomTooltipProps) {
 
 export function BurnChart({ data, isLoading = false }: BurnChartProps) {
   const [showUsd, setShowUsd] = useState(false);
-  const [viewMode, setViewMode] = useState<'cumulative' | 'daily'>('cumulative');
+  const [viewMode, setViewMode] = useState<'cumulative' | 'daily'>('daily');
 
   if (isLoading) {
     return (

@@ -142,14 +142,14 @@ export default function Home() {
           />
         </div>
 
-        {/* Chart */}
-        <BurnChart data={chartData} isLoading={isDailyLoading} />
-
         {/* Inflation Analysis Chart */}
         <InflationChart currentBurn={summary?.total_uni_burned || 0} />
 
         {/* Unvesting Analysis Chart */}
         <UnvestingChart data={chartData} />
+
+        {/* Chart */}
+        <BurnChart data={chartData} isLoading={isDailyLoading} />
 
         {/* Footer Info */}
         <Footer />
