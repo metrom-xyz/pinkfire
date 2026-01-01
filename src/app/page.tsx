@@ -1,7 +1,7 @@
 'use client';
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Header, StatCard, BurnChart, Footer, InflationChart } from '@/components';
+import { Header, StatCard, BurnChart, Footer, InflationChart, UnvestingChart } from '@/components';
 import type { BurnSummary, ChartDataPoint } from '@/types';
 import { CONSTANTS } from '@/lib/constants';
 import { useState, useCallback } from 'react';
@@ -147,6 +147,9 @@ export default function Home() {
 
         {/* Inflation Analysis Chart */}
         <InflationChart currentBurn={summary?.total_uni_burned || 0} />
+
+        {/* Unvesting Analysis Chart */}
+        <UnvestingChart data={chartData} />
 
         {/* Footer Info */}
         <Footer />
