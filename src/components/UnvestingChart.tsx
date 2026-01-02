@@ -73,7 +73,7 @@ export function UnvestingChart({ data }: UnvestingChartProps) {
     };
 
     return (
-        <div className="bg-[#191919] rounded-xl p-6 mt-6">
+        <div className="bg-[#191919] rounded-xl p-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
                 <div>
                     <h3 className="text-lg font-semibold text-white">

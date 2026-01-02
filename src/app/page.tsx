@@ -145,11 +145,13 @@ export default function Home() {
         {/* Inflation Analysis Chart */}
         <InflationChart currentBurn={summary?.total_uni_burned || 0} />
 
-        {/* Unvesting Analysis Chart */}
-        <UnvestingChart data={chartData} />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+          {/* Unvesting Analysis Chart */}
+          <UnvestingChart data={chartData} />
 
-        {/* Chart */}
-        <BurnChart data={chartData} isLoading={isDailyLoading} />
+          {/* Chart */}
+          <BurnChart data={chartData} isLoading={isDailyLoading} />
+        </div>
 
         {/* Footer Info */}
         <Footer />
