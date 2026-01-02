@@ -69,7 +69,7 @@ export function Footer() {
 
                 <div className="flex items-center space-x-6">
                     <a
-                        href="https://x.com/0xVenky"
+                        href="https://x.com/pinkfirexyz"
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-[#8B8B8B] hover:text-[#FF007A] transition-colors flex items-center space-x-2"
