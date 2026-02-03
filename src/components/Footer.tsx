@@ -32,7 +32,7 @@ export function Footer() {
                 <p className="text-sm text-[#8B8B8B]">
                     Tracks all burn transfers to{' '}
                     <a
-                        href={`https://etherscan.io/token/0x1f9840a85d5af5bf1d1762f925bdaddc4201f984?a${CONSTANTS.DEAD_ADDRESS}`}
+                        href={`https://etherscan.io/token/0x1f9840a85d5af5bf1d1762f925bdaddc4201f984?a=${CONSTANTS.DEAD_ADDRESS}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-[#FF007A] hover:underline"
