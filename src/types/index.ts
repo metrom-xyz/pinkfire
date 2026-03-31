@@ -1,5 +1,6 @@
 export interface DailyBurn {
   date: string;
+  chain: string;
   cumulative_uni: number;
   daily_uni: number;
   uni_price_usd: number | null;
@@ -10,6 +11,7 @@ export interface DailyBurn {
 
 export interface BurnTransaction {
   tx_hash: string;
+  chain: string;
   block_number: number;
   timestamp: string;
   uni_amount: number;
@@ -25,6 +27,14 @@ export interface BurnSummary {
   today_burns: number;
   current_uni_price: number | null;
   last_updated: string;
+  per_chain: ChainBurnSummary[];
+}
+
+export interface ChainBurnSummary {
+  chain: string;
+  total_uni_burned: number;
+  historical_usd_value: number | null;
+  today_burns: number;
 }
 
 export interface ChartDataPoint {
@@ -34,6 +44,20 @@ export interface ChartDataPoint {
   daily_uni: number;
   usd_value: number | null;
   isLive?: boolean;
+  // Per-chain daily breakdown for stacked charts
+  [chainKey: string]: string | number | boolean | null | undefined;
+}
+
+export interface ChainConfig {
+  id: string;
+  name: string;
+  chainId: number;
+  blockscoutBaseUrl: string;
+  uniTokenAddress: string;
+  releaserAddress?: string;
+  startDate: string;
+  color: string;
+  enabled: boolean;
 }
 
 export interface BlockScoutTokenTransfer {

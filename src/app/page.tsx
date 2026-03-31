@@ -1,15 +1,31 @@
 'use client';
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Header, StatCard, BurnChart, Footer, InflationChart, UnvestingChart } from '@/components';
+import {
+  Header,
+  StatCard,
+  BurnChart,
+  Footer,
+  InflationChart,
+  UnvestingChart,
+  ChainSelector,
+  ChainBreakdown,
+} from '@/components';
 import type { BurnSummary, ChartDataPoint } from '@/types';
 import { CONSTANTS } from '@/lib/constants';
 import { useState, useCallback } from 'react';
+
+interface ChainInfo {
+  id: string;
+  name: string;
+  color: string;
+}
 
 interface DailyBurnsResponse {
   success: boolean;
   data: ChartDataPoint[];
   count: number;
+  chains: ChainInfo[];
   error?: string;
 }
 
@@ -35,15 +51,18 @@ function formatUSD(value: number): string {
 export default function Home() {
   const queryClient = useQueryClient();
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [selectedChain, setSelectedChain] = useState<string | null>(null);
+
+  const chainParam = selectedChain ? `?chain=${selectedChain}` : '';
 
   const {
     data: dailyData,
     isLoading: isDailyLoading,
     error: dailyError,
   } = useQuery<DailyBurnsResponse>({
-    queryKey: ['daily-burns'],
+    queryKey: ['daily-burns', selectedChain],
     queryFn: async () => {
-      const res = await fetch('/api/burns/daily');
+      const res = await fetch(`/api/burns/daily${chainParam}`);
       if (!res.ok) throw new Error('Failed to fetch daily burns');
       return res.json();
     },
@@ -55,9 +74,9 @@ export default function Home() {
     isLoading: isSummaryLoading,
     error: summaryError,
   } = useQuery<SummaryResponse>({
-    queryKey: ['burn-summary'],
+    queryKey: ['burn-summary', selectedChain],
     queryFn: async () => {
-      const res = await fetch('/api/burns/summary');
+      const res = await fetch(`/api/burns/summary${chainParam}`);
       if (!res.ok) throw new Error('Failed to fetch summary');
       return res.json();
     },
@@ -78,6 +97,7 @@ export default function Home() {
   }, [queryClient]);
 
   const chartData = dailyData?.data || [];
+  const chains = dailyData?.chains || [];
   const summary = summaryData?.data;
   const isLoading = isDailyLoading || isSummaryLoading;
   const hasError = dailyError || summaryError;
@@ -90,6 +110,11 @@ export default function Home() {
           isRefreshing={isRefreshing || isLoading}
           onRefresh={handleRefresh}
         />
+
+        {/* Chain Selector */}
+        <div className="mb-6">
+          <ChainSelector selected={selectedChain} onChange={setSelectedChain} />
+        </div>
 
         {hasError && (
           <div className="mb-6 p-4 bg-red-900/20 border border-red-500/30 rounded-lg">
@@ -149,9 +174,21 @@ export default function Home() {
           {/* Unvesting Analysis Chart */}
           <UnvestingChart data={chartData} />
 
-          {/* Chart */}
-          <BurnChart data={chartData} isLoading={isDailyLoading} />
+          {/* Burn Chart */}
+          <BurnChart
+            data={chartData}
+            isLoading={isDailyLoading}
+            chains={chains}
+            selectedChain={selectedChain}
+          />
         </div>
+
+        {/* Chain Breakdown - only show when viewing all chains */}
+        {!selectedChain && summary?.per_chain && summary.per_chain.length > 0 && (
+          <div className="mt-6">
+            <ChainBreakdown perChain={summary.per_chain} />
+          </div>
+        )}
 
         {/* Footer Info */}
         <Footer />
