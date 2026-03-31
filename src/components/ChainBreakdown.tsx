@@ -89,7 +89,7 @@ export function ChainBreakdown({ perChain }: ChainBreakdownProps) {
           )}
         </div>
 
-        <div className="flex-1 grid grid-cols-2 gap-2">
+        <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-3">
           {data.map((entry) => {
             const pct = total > 0 ? ((entry.value / total) * 100).toFixed(1) : '0';
             return (
@@ -98,8 +98,13 @@ export function ChainBreakdown({ perChain }: ChainBreakdownProps) {
                   className="w-2.5 h-2.5 rounded-full flex-shrink-0"
                   style={{ backgroundColor: entry.color }}
                 />
-                <span className="text-[#8B8B8B] truncate">{entry.name}</span>
-                <span className="text-white font-mono ml-auto">{pct}%</span>
+                <div className="flex-1 min-w-0">
+                  <span className="text-[#8B8B8B]">{entry.name}</span>
+                </div>
+                <div className="text-right flex-shrink-0">
+                  <span className="text-white font-mono">{entry.value.toLocaleString(undefined, { maximumFractionDigits: 0 })} UNI</span>
+                  <span className="text-[#8B8B8B] font-mono ml-2">({pct}%)</span>
+                </div>
               </div>
             );
           })}
