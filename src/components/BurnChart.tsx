@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import {
-  LineChart,
   Line,
   XAxis,
   YAxis,
@@ -16,20 +15,34 @@ import {
 import type { ChartDataPoint } from '@/types';
 import { THEME } from '@/lib/constants';
 
+interface ChainInfo {
+  id: string;
+  name: string;
+  color: string;
+}
+
 interface BurnChartProps {
   data: ChartDataPoint[];
   isLoading?: boolean;
+  chains?: ChainInfo[];
+  selectedChain?: string | null;
 }
 
 interface CustomTooltipProps {
   active?: boolean;
   payload?: Array<{
     payload: ChartDataPoint;
+    dataKey: string;
+    name: string;
+    color: string;
+    value: number;
   }>;
   showUsd: boolean;
+  chains?: ChainInfo[];
+  viewMode: 'cumulative' | 'daily';
 }
 
-function CustomTooltip({ active, payload, showUsd }: CustomTooltipProps) {
+function CustomTooltip({ active, payload, showUsd, chains, viewMode }: CustomTooltipProps) {
   if (!active || !payload || !payload.length) return null;
 
   const data = payload[0].payload;
@@ -44,31 +57,55 @@ function CustomTooltip({ active, payload, showUsd }: CustomTooltipProps) {
     <div className="bg-[#191919] border border-[#2D2D2D] rounded-lg p-4 shadow-xl">
       <p className="text-sm text-[#8B8B8B] mb-2">{formattedDate}</p>
       <div className="space-y-1">
-        <p className="text-white">
-          <span className="text-[#8B8B8B]">Cumulative: </span>
-          <span className="font-bold text-[#FF007A]">
-            {data.cumulative_uni.toLocaleString(undefined, {
-              maximumFractionDigits: 2,
-            })}{' '}
-            UNI
-          </span>
-        </p>
-        <p className="text-white">
-          <span className="text-[#8B8B8B]">Daily: </span>
-          <span className="font-medium">
-            {data.daily_uni.toLocaleString(undefined, {
-              maximumFractionDigits: 2,
-            })}{' '}
-            UNI
-          </span>
-        </p>
+        {viewMode === 'daily' && chains && chains.length > 0 ? (
+          // Show per-chain breakdown in daily stacked mode
+          <>
+            {chains.map((chain) => {
+              const val = (data as any)[`daily_${chain.id}`];
+              if (!val || val === 0) return null;
+              return (
+                <p key={chain.id} className="text-white text-sm">
+                  <span
+                    className="inline-block w-2 h-2 rounded-full mr-1.5"
+                    style={{ backgroundColor: chain.color }}
+                  />
+                  <span className="text-[#8B8B8B]">{chain.name}: </span>
+                  <span className="font-medium font-mono">
+                    {val.toLocaleString(undefined, { maximumFractionDigits: 2 })} UNI
+                  </span>
+                </p>
+              );
+            })}
+            <div className="border-t border-[#2D2D2D] pt-1 mt-1">
+              <p className="text-white">
+                <span className="text-[#8B8B8B]">Total Daily: </span>
+                <span className="font-bold font-mono">
+                  {data.daily_uni.toLocaleString(undefined, { maximumFractionDigits: 2 })} UNI
+                </span>
+              </p>
+            </div>
+          </>
+        ) : (
+          <>
+            <p className="text-white">
+              <span className="text-[#8B8B8B]">Cumulative: </span>
+              <span className="font-bold text-[#FF007A] font-mono">
+                {data.cumulative_uni.toLocaleString(undefined, { maximumFractionDigits: 2 })} UNI
+              </span>
+            </p>
+            <p className="text-white">
+              <span className="text-[#8B8B8B]">Daily: </span>
+              <span className="font-medium font-mono">
+                {data.daily_uni.toLocaleString(undefined, { maximumFractionDigits: 2 })} UNI
+              </span>
+            </p>
+          </>
+        )}
         {showUsd && data.usd_value && (
           <p className="text-white">
             <span className="text-[#8B8B8B]">USD Value: </span>
-            <span className="font-medium text-[#27AE60]">
-              ${data.usd_value.toLocaleString(undefined, {
-                maximumFractionDigits: 2,
-              })}
+            <span className="font-medium text-[#27AE60] font-mono">
+              ${data.usd_value.toLocaleString(undefined, { maximumFractionDigits: 2 })}
             </span>
           </p>
         )}
@@ -83,7 +120,7 @@ function CustomTooltip({ active, payload, showUsd }: CustomTooltipProps) {
   );
 }
 
-export function BurnChart({ data, isLoading = false }: BurnChartProps) {
+export function BurnChart({ data, isLoading = false, chains = [], selectedChain }: BurnChartProps) {
   const [showUsd, setShowUsd] = useState(false);
   const [viewMode, setViewMode] = useState<'cumulative' | 'daily'>('daily');
   const [isMounted, setIsMounted] = useState(false);
@@ -121,10 +158,18 @@ export function BurnChart({ data, isLoading = false }: BurnChartProps) {
   }
 
   const maxValue = Math.max(...data.map((d) => d.cumulative_uni));
-  const maxDailyValue = Math.max(...data.map((d) => d.daily_uni), 10); // Ensure at least some height
+  const maxDailyValue = Math.max(...data.map((d) => d.daily_uni), 10);
 
   const yDomain = [0, Math.ceil(maxValue * 1.1)];
   const dailyYDomain = [0, Math.ceil(maxDailyValue * 1.1)];
+
+  // Show stacked bars when viewing all chains (no filter) and we have chain data
+  const showStacked = !selectedChain && chains.length > 0 && viewMode === 'daily';
+  // Filter to only chains that have at least one non-zero data point
+  const activeChains = showStacked
+    ? chains.filter((c) => data.some((d) => ((d as any)[`daily_${c.id}`] || 0) > 0))
+    : [];
+  const hasChainBreakdown = activeChains.length > 0;
 
   return (
     <div className="bg-[#191919] rounded-xl p-6">
@@ -132,23 +177,24 @@ export function BurnChart({ data, isLoading = false }: BurnChartProps) {
         <h2 className="text-lg font-semibold text-white">Daily Burn History</h2>
 
         <div className="flex items-center gap-4">
-          {/* Switcher */}
           <div className="flex bg-[#0D0D0D] p-1 rounded-lg border border-[#2D2D2D]">
             <button
               onClick={() => setViewMode('cumulative')}
-              className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${viewMode === 'cumulative'
-                ? 'bg-[#2D2D2D] text-white'
-                : 'text-[#8B8B8B] hover:text-white'
-                }`}
+              className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
+                viewMode === 'cumulative'
+                  ? 'bg-[#2D2D2D] text-white'
+                  : 'text-[#8B8B8B] hover:text-white'
+              }`}
             >
               Cumulative
             </button>
             <button
               onClick={() => setViewMode('daily')}
-              className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${viewMode === 'daily'
-                ? 'bg-[#2D2D2D] text-white'
-                : 'text-[#8B8B8B] hover:text-white'
-                }`}
+              className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
+                viewMode === 'daily'
+                  ? 'bg-[#2D2D2D] text-white'
+                  : 'text-[#8B8B8B] hover:text-white'
+              }`}
             >
               Daily
             </button>
@@ -179,11 +225,7 @@ export function BurnChart({ data, isLoading = false }: BurnChartProps) {
                     <stop offset="95%" stopColor={THEME.primary} stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  stroke={THEME.border}
-                  vertical={false}
-                />
+                <CartesianGrid strokeDasharray="3 3" stroke={THEME.border} vertical={false} />
                 <XAxis
                   dataKey="displayDate"
                   stroke={THEME.textSecondary}
@@ -222,7 +264,7 @@ export function BurnChart({ data, isLoading = false }: BurnChartProps) {
                     }
                   />
                 )}
-                <Tooltip content={<CustomTooltip showUsd={showUsd} />} />
+                <Tooltip content={<CustomTooltip showUsd={showUsd} viewMode={viewMode} />} />
                 <Area
                   type="monotone"
                   dataKey="cumulative_uni"
@@ -256,11 +298,7 @@ export function BurnChart({ data, isLoading = false }: BurnChartProps) {
               </ComposedChart>
             ) : (
               <ComposedChart data={data} margin={{ top: 10, right: 30, left: 10, bottom: 10 }}>
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  stroke={THEME.border}
-                  vertical={false}
-                />
+                <CartesianGrid strokeDasharray="3 3" stroke={THEME.border} vertical={false} />
                 <XAxis
                   dataKey="displayDate"
                   stroke={THEME.textSecondary}
@@ -282,14 +320,38 @@ export function BurnChart({ data, isLoading = false }: BurnChartProps) {
                         : value.toString()
                   }
                 />
-                <Tooltip content={<CustomTooltip showUsd={false} />} cursor={{ fill: 'transparent' }} />
-                <Bar
-                  dataKey="daily_uni"
-                  name="Daily Burned"
-                  fill={THEME.primary}
-                  radius={[4, 4, 0, 0]}
-                  barSize={20}
+                <Tooltip
+                  content={
+                    <CustomTooltip
+                      showUsd={false}
+                      chains={hasChainBreakdown ? activeChains : undefined}
+                      viewMode={viewMode}
+                    />
+                  }
+                  cursor={{ fill: 'transparent' }}
                 />
+                {hasChainBreakdown ? (
+                  // Stacked bars by chain (only chains with data)
+                  activeChains.map((chain, idx) => (
+                    <Bar
+                      key={chain.id}
+                      dataKey={`daily_${chain.id}`}
+                      name={chain.name}
+                      stackId="burns"
+                      fill={chain.color}
+                      radius={idx === activeChains.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]}
+                      barSize={20}
+                    />
+                  ))
+                ) : (
+                  <Bar
+                    dataKey="daily_uni"
+                    name="Daily Burned"
+                    fill={THEME.primary}
+                    radius={[4, 4, 0, 0]}
+                    barSize={20}
+                  />
+                )}
               </ComposedChart>
             )}
           </ResponsiveContainer>
@@ -299,6 +361,21 @@ export function BurnChart({ data, isLoading = false }: BurnChartProps) {
           </div>
         )}
       </div>
+
+      {/* Chain legend for stacked mode */}
+      {hasChainBreakdown && (
+        <div className="flex flex-wrap items-center justify-center gap-4 text-xs text-[#8B8B8B] mt-4">
+          {activeChains.map((chain) => (
+            <div key={chain.id} className="flex items-center gap-1.5">
+              <span
+                className="w-2.5 h-2.5 rounded-sm"
+                style={{ backgroundColor: chain.color }}
+              />
+              <span>{chain.name}</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import { CONSTANTS } from './constants';
 import type {
+  ChainConfig,
   BlockScoutTokenTransfer,
   BlockScoutTransferResponse,
   BlockScoutTokenBalance,
@@ -25,7 +26,6 @@ async function fetchWithRetry<T>(
 
       if (!response.ok) {
         if (response.status === 429) {
-          // Rate limited, wait and retry
           await delay(backoffMs * Math.pow(2, i));
           continue;
         }
@@ -40,6 +40,8 @@ async function fetchWithRetry<T>(
   }
   throw new Error('Max retries reached');
 }
+
+// --- Token info (Ethereum mainnet only, for price) ---
 
 export async function getUniTokenInfo(): Promise<BlockScoutTokenInfo | null> {
   try {
@@ -64,13 +66,13 @@ export async function getCurrentUniPrice(): Promise<number | null> {
   }
 }
 
-export async function getDeadAddressUniBalance(): Promise<number | null> {
+export async function getDeadAddressUniBalance(chain: ChainConfig): Promise<number | null> {
   try {
-    const url = `${CONSTANTS.BLOCKSCOUT_BASE_URL}/addresses/${CONSTANTS.DEAD_ADDRESS}/token-balances`;
+    const url = `${chain.blockscoutBaseUrl}/addresses/${CONSTANTS.DEAD_ADDRESS}/token-balances`;
     const balances = await fetchWithRetry<BlockScoutTokenBalance[]>(url);
 
     const uniBalance = balances.find(
-      (b) => b.token.address.toLowerCase() === CONSTANTS.UNI_TOKEN.toLowerCase()
+      (b) => b.token.address.toLowerCase() === chain.uniTokenAddress.toLowerCase()
     );
 
     if (uniBalance) {
@@ -81,12 +83,15 @@ export async function getDeadAddressUniBalance(): Promise<number | null> {
 
     return null;
   } catch (error) {
-    console.error('Error fetching dead address UNI balance:', error);
+    console.error(`Error fetching dead address UNI balance on ${chain.name}:`, error);
     return null;
   }
 }
 
-export async function getUniTransfersToDeadAddress(
+// --- Chain-aware transfer fetching ---
+
+export async function getUniBurnTransfers(
+  chain: ChainConfig,
   startDate: string,
   afterBlockNumber?: number
 ): Promise<BurnTransaction[]> {
@@ -95,14 +100,21 @@ export async function getUniTransfersToDeadAddress(
   let nextPageParams: { block_number: number; index: number; items_count: number } | null = null;
   let hasMore = true;
 
+  // L2 chains with a Releaser: track UNI transfers FROM the Releaser (bridge-burns)
+  // Ethereum (no releaser): track UNI transfers TO 0xdEaD (direct burns)
+  const isReleaserMode = !!chain.releaserAddress;
+  const trackAddress = isReleaserMode ? chain.releaserAddress! : CONSTANTS.DEAD_ADDRESS;
+  const filterDirection = isReleaserMode ? 'from' : 'to';
+
+  console.log(`[${chain.name}] Tracking ${filterDirection} ${trackAddress.slice(0, 10)}...`);
+
   while (hasMore) {
     try {
-      let url = `${CONSTANTS.BLOCKSCOUT_BASE_URL}/addresses/${CONSTANTS.DEAD_ADDRESS}/token-transfers`;
-      // Use token filter to directly query UNI token transfers only
+      let url = `${chain.blockscoutBaseUrl}/addresses/${trackAddress}/token-transfers`;
       const params = new URLSearchParams({
         type: 'ERC-20',
-        filter: 'to',
-        token: CONSTANTS.UNI_TOKEN,
+        filter: filterDirection,
+        token: chain.uniTokenAddress,
       });
 
       if (nextPageParams) {
@@ -112,21 +124,19 @@ export async function getUniTransfersToDeadAddress(
       }
 
       url = `${url}?${params.toString()}`;
-      console.log('Fetching:', url);
+      console.log(`[${chain.name}] Fetching:`, url);
 
       const response = await fetchWithRetry<BlockScoutTransferResponse>(url);
-      console.log('Got items:', response.items?.length || 0);
+      console.log(`[${chain.name}] Got items:`, response.items?.length || 0);
 
       for (const transfer of response.items) {
         const txTimestamp = new Date(transfer.timestamp).getTime();
 
-        // Skip if before start date
         if (txTimestamp < startTimestamp) {
           hasMore = false;
           break;
         }
 
-        // Skip if we already have this transaction (when resuming)
         if (afterBlockNumber && transfer.block_number <= afterBlockNumber) {
           hasMore = false;
           break;
@@ -137,10 +147,11 @@ export async function getUniTransfersToDeadAddress(
 
         transactions.push({
           tx_hash: transfer.transaction_hash,
+          chain: chain.id,
           block_number: transfer.block_number,
           timestamp: transfer.timestamp,
           uni_amount: amount,
-          uni_price_usd: null, // Will be filled in later
+          uni_price_usd: null,
           usd_value: null,
           from_address: transfer.from.hash,
         });
@@ -149,23 +160,21 @@ export async function getUniTransfersToDeadAddress(
       nextPageParams = response.next_page_params;
       hasMore = hasMore && nextPageParams !== null;
 
-      // Rate limiting: wait between requests
       if (hasMore) {
         await delay(200);
       }
     } catch (error) {
-      console.error('Error fetching transfers:', error);
+      console.error(`[${chain.name}] Error fetching transfers:`, error);
       hasMore = false;
     }
   }
 
-  console.log('Total transactions found:', transactions.length);
+  console.log(`[${chain.name}] Total transactions found:`, transactions.length);
   return transactions;
 }
 
 export async function getHistoricalUniPrice(date: string): Promise<number | null> {
   try {
-    // Format date for CoinGecko: dd-mm-yyyy
     const [year, month, day] = date.split('-');
     const formattedDate = `${day}-${month}-${year}`;
 

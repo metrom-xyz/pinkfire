@@ -30,7 +30,7 @@ export function Footer() {
             {/* Existing Disclaimer */}
             <div className="mb-8">
                 <p className="text-sm text-[#8B8B8B]">
-                    Tracks all burn transfers to{' '}
+                    Tracks UNI burn transfers to{' '}
                     <a
                         href={`https://etherscan.io/token/0x1f9840a85d5af5bf1d1762f925bdaddc4201f984?a${CONSTANTS.DEAD_ADDRESS}`}
                         target="_blank"
@@ -40,6 +40,7 @@ export function Footer() {
                         {CONSTANTS.DEAD_ADDRESS.slice(0, 6)}...
                         {CONSTANTS.DEAD_ADDRESS.slice(-4)}
                     </a>{' '}
+                    across Ethereum, Unichain, Arbitrum, Base, OP Mainnet, Celo, Soneium, and Worldchain
                     since {CONSTANTS.START_DATE}. This does not include{' '}
                     <a
                         href="https://etherscan.io/tx/0x091f0083242a777d55821c1189e568d6d033d9da501b75087dc736fa143d2c1e"

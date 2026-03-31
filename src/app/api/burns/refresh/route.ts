@@ -10,13 +10,14 @@ export async function GET() {
     return NextResponse.json({
       success: result.success,
       message: result.success
-        ? `Synced ${result.newTransactions} new transactions`
+        ? `Synced ${result.newTransactions} new transactions across ${result.chainResults?.length || 0} chains`
         : 'Sync failed',
       data: {
         newTransactions: result.newTransactions,
         totalBurned: result.totalBurned,
         currentPrice: result.currentPrice,
         lastUpdated: result.lastUpdated,
+        chainResults: result.chainResults,
       },
       error: result.error,
     });
