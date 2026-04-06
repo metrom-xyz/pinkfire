@@ -16,9 +16,13 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const chain = searchParams.get('chain') || undefined;
 
-    const totalBurned = await getTotalBurned(chain);
-    const todayBurns = await getTodayBurns(chain);
-    const historicalUsdValue = await getHistoricalUsdValue(chain);
+    // When viewing all chains, use Ethereum 0xdEaD as ground truth to avoid
+    // double-counting L2 burns (they bridge back to mainnet after ~7 days).
+    // When filtering by a specific chain, show that chain's data.
+    const totalChain = chain || 'ethereum';
+    const totalBurned = await getTotalBurned(totalChain);
+    const todayBurns = await getTodayBurns(totalChain);
+    const historicalUsdValue = await getHistoricalUsdValue(totalChain);
     const latestDailyBurn = await getLatestDailyBurn();
 
     let currentPrice: number | null = null;
