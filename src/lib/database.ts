@@ -28,36 +28,27 @@ export async function getDailyBurns(chain?: string): Promise<DailyBurn[]> {
 }
 
 export async function getDailyBurnsAggregated(): Promise<DailyBurn[]> {
+  // Use Ethereum as ground truth for cumulative/daily totals to avoid
+  // double-counting L2 burns (they bridge back to mainnet after ~7 days).
   const result = await db.execute({
     sql: `
       SELECT
         date,
         'all' as chain,
-        SUM(daily_uni) as daily_uni,
-        SUM(daily_usd_value) as daily_usd_value,
-        MAX(uni_price_usd) as uni_price_usd,
-        MAX(updated_at) as updated_at,
-        0 as cumulative_uni,
-        0 as cumulative_usd_value
+        daily_uni,
+        daily_usd_value,
+        uni_price_usd,
+        updated_at,
+        cumulative_uni,
+        cumulative_usd_value
       FROM daily_burns
-      WHERE date >= ?
-      GROUP BY date
+      WHERE date >= ? AND chain = 'ethereum'
       ORDER BY date ASC
     `,
     args: [CONSTANTS.START_DATE],
   });
 
-  // Recalculate cumulative values across the aggregated rows
-  const rows = result.rows as unknown as DailyBurn[];
-  let cumulativeUni = 0;
-  let cumulativeUsd = 0;
-  for (const row of rows) {
-    cumulativeUni += row.daily_uni;
-    cumulativeUsd += row.daily_usd_value || 0;
-    row.cumulative_uni = cumulativeUni;
-    row.cumulative_usd_value = cumulativeUsd;
-  }
-  return rows;
+  return result.rows as unknown as DailyBurn[];
 }
 
 export async function getDailyBurnByDate(date: string, chain: string): Promise<DailyBurn | undefined> {
