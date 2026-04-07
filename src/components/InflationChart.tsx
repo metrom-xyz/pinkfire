@@ -1,32 +1,67 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-
 import {
     BarChart,
     Bar,
     XAxis,
     YAxis,
-    CartesianGrid,
     Tooltip,
     ResponsiveContainer,
-    Cell,
-    Legend
 } from 'recharts';
 import { THEME } from '@/lib/constants';
+import { useIsClient } from '@/lib/use-is-client';
 
 interface InflationChartProps {
     currentBurn: number;
 }
 
+interface InflationTooltipProps {
+    active?: boolean;
+    payload?: ReadonlyArray<unknown>;
+    currentBurn: number;
+    remaining: number;
+    isDeflationary: boolean;
+}
+
+function InflationTooltip({
+    active,
+    payload,
+    currentBurn,
+    remaining,
+    isDeflationary,
+}: InflationTooltipProps) {
+    if (!active || !payload?.length) return null;
+    return (
+        <div className="bg-[#191919] border border-[#2D2D2D] rounded-lg p-4 shadow-xl">
+            <p className="text-sm text-[#8B8B8B] mb-2">Inflation Analysis</p>
+            <div className="space-y-2">
+                <div>
+                    <p className="text-[#8B8B8B] text-xs">Target</p>
+                    <p className="text-white font-mono">20,000,000 UNI</p>
+                </div>
+                <div>
+                    <p className="text-[#8B8B8B] text-xs">Current Burned</p>
+                    <p className={`font-bold font-mono ${isDeflationary ? 'text-[#27AE60]' : 'text-[#FF007A]'}`}>
+                        {currentBurn.toLocaleString(undefined, { maximumFractionDigits: 0 })} UNI
+                    </p>
+                </div>
+                {!isDeflationary && (
+                    <div>
+                        <p className="text-[#8B8B8B] text-xs">Remaining to Deflationary</p>
+                        <p className="text-[#4A4A4A] font-mono">
+                            {remaining.toLocaleString(undefined, { maximumFractionDigits: 0 })} UNI
+                        </p>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
+
 export function InflationChart({ currentBurn }: InflationChartProps) {
     const TARGET_BURN = 20_000_000;
     const isDeflationary = currentBurn >= TARGET_BURN;
-    const [isMounted, setIsMounted] = useState(false);
-
-    useEffect(() => {
-        setIsMounted(true);
-    }, []);
+    const isMounted = useIsClient();
 
     // For the progress bar:
     // If not deflationary:
@@ -45,38 +80,6 @@ export function InflationChart({ currentBurn }: InflationChartProps) {
             target: TARGET_BURN,
         },
     ];
-
-    const CustomTooltip = ({ active, payload }: any) => {
-        if (active && payload && payload.length) {
-            const data = payload[0].payload;
-            return (
-                <div className="bg-[#191919] border border-[#2D2D2D] rounded-lg p-4 shadow-xl">
-                    <p className="text-sm text-[#8B8B8B] mb-2">Inflation Analysis</p>
-                    <div className="space-y-2">
-                        <div>
-                            <p className="text-[#8B8B8B] text-xs">Target</p>
-                            <p className="text-white font-mono">20,000,000 UNI</p>
-                        </div>
-                        <div>
-                            <p className="text-[#8B8B8B] text-xs">Current Burned</p>
-                            <p className={`font-bold font-mono ${isDeflationary ? "text-[#27AE60]" : "text-[#FF007A]"}`}>
-                                {currentBurn.toLocaleString(undefined, { maximumFractionDigits: 0 })} UNI
-                            </p>
-                        </div>
-                        {!isDeflationary && (
-                            <div>
-                                <p className="text-[#8B8B8B] text-xs">Remaining to Deflationary</p>
-                                <p className="text-[#4A4A4A] font-mono">
-                                    {remaining.toLocaleString(undefined, { maximumFractionDigits: 0 })} UNI
-                                </p>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            );
-        }
-        return null;
-    };
 
     // Calculate percentage for display
     const percentage = (currentBurn / TARGET_BURN) * 100;
@@ -111,7 +114,18 @@ export function InflationChart({ currentBurn }: InflationChartProps) {
                         >
                             <XAxis type="number" hide domain={[0, Math.max(TARGET_BURN, currentBurn)]} />
                             <YAxis type="category" dataKey="name" hide />
-                            <Tooltip content={<CustomTooltip />} cursor={false} />
+                            <Tooltip
+                                content={(props) => (
+                                    <InflationTooltip
+                                        active={props.active}
+                                        payload={props.payload}
+                                        currentBurn={currentBurn}
+                                        remaining={remaining}
+                                        isDeflationary={isDeflationary}
+                                    />
+                                )}
+                                cursor={false}
+                            />
                             <Bar dataKey="burned" stackId="a" fill={isDeflationary ? "#27AE60" : THEME.primary} radius={isDeflationary ? [4, 4, 4, 4] : [4, 0, 0, 4]} barSize={40} />
                             <Bar dataKey="remaining" stackId="a" fill="#333333" radius={[0, 4, 4, 0]} barSize={40} />
                         </BarChart>

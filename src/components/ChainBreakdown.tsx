@@ -1,6 +1,5 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import {
   PieChart,
   Pie,
@@ -10,18 +9,37 @@ import {
 } from 'recharts';
 import { getEnabledChains } from '@/lib/constants';
 import type { ChainBurnSummary } from '@/types';
+import { useIsClient } from '@/lib/use-is-client';
 
 interface ChainBreakdownProps {
   perChain: ChainBurnSummary[];
 }
 
-export function ChainBreakdown({ perChain }: ChainBreakdownProps) {
-  const [isMounted, setIsMounted] = useState(false);
-  const chains = getEnabledChains();
+interface ChainBreakdownTooltipProps {
+  active?: boolean;
+  payload?: ReadonlyArray<{ name?: string; value?: number }>;
+  total: number;
+}
 
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
+function ChainBreakdownTooltip({ active, payload, total }: ChainBreakdownTooltipProps) {
+  if (!active || !payload?.length) return null;
+  const entry = payload[0];
+  if (entry?.value === undefined) return null;
+  const pct = total > 0 ? ((entry.value / total) * 100).toFixed(1) : '0';
+  return (
+    <div className="bg-[#191919] border border-[#2D2D2D] rounded-lg p-3 shadow-xl">
+      <p className="text-sm font-medium text-white">{entry.name}</p>
+      <p className="text-sm text-[#8B8B8B]">
+        {entry.value.toLocaleString(undefined, { maximumFractionDigits: 0 })} UNI
+      </p>
+      <p className="text-xs text-[#8B8B8B]">{pct}%</p>
+    </div>
+  );
+}
+
+export function ChainBreakdown({ perChain }: ChainBreakdownProps) {
+  const isMounted = useIsClient();
+  const chains = getEnabledChains();
 
   const chainMap = new Map(chains.map((c) => [c.id, c]));
 
@@ -39,23 +57,6 @@ export function ChainBreakdown({ perChain }: ChainBreakdownProps) {
   if (data.length === 0) {
     return null;
   }
-
-  const CustomTooltip = ({ active, payload }: any) => {
-    if (active && payload && payload.length) {
-      const entry = payload[0];
-      const pct = total > 0 ? ((entry.value / total) * 100).toFixed(1) : '0';
-      return (
-        <div className="bg-[#191919] border border-[#2D2D2D] rounded-lg p-3 shadow-xl">
-          <p className="text-sm font-medium text-white">{entry.name}</p>
-          <p className="text-sm text-[#8B8B8B]">
-            {entry.value.toLocaleString(undefined, { maximumFractionDigits: 0 })} UNI
-          </p>
-          <p className="text-xs text-[#8B8B8B]">{pct}%</p>
-        </div>
-      );
-    }
-    return null;
-  };
 
   return (
     <div className="bg-[#191919] rounded-xl p-6">
@@ -79,7 +80,15 @@ export function ChainBreakdown({ perChain }: ChainBreakdownProps) {
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
-                <Tooltip content={<CustomTooltip />} />
+                <Tooltip
+                  content={(props) => (
+                    <ChainBreakdownTooltip
+                      active={props.active}
+                      payload={props.payload}
+                      total={total}
+                    />
+                  )}
+                />
               </PieChart>
             </ResponsiveContainer>
           ) : (
