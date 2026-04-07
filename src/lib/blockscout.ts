@@ -1,7 +1,6 @@
 import { CONSTANTS } from './constants';
 import type {
   ChainConfig,
-  BlockScoutTokenTransfer,
   BlockScoutTransferResponse,
   BlockScoutTokenBalance,
   BlockScoutTokenInfo,
@@ -171,26 +170,4 @@ export async function getUniBurnTransfers(
 
   console.log(`[${chain.name}] Total transactions found:`, transactions.length);
   return transactions;
-}
-
-export async function getHistoricalUniPrice(date: string): Promise<number | null> {
-  try {
-    const [year, month, day] = date.split('-');
-    const formattedDate = `${day}-${month}-${year}`;
-
-    const url = `${CONSTANTS.COINGECKO_API_URL}/coins/uniswap/history?date=${formattedDate}&localization=false`;
-
-    const response = await fetchWithRetry<{
-      market_data?: {
-        current_price?: {
-          usd?: number;
-        };
-      };
-    }>(url);
-
-    return response.market_data?.current_price?.usd ?? null;
-  } catch (error) {
-    console.error(`Error fetching historical price for ${date}:`, error);
-    return null;
-  }
 }

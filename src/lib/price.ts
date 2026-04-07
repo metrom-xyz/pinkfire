@@ -2,6 +2,30 @@ import { CONSTANTS } from './constants';
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+async function fetchJsonWithRetry<T>(url: string, retries = 3, backoffMs = 1000): Promise<T> {
+  for (let i = 0; i < retries; i++) {
+    try {
+      const response = await fetch(url, {
+        headers: { Accept: 'application/json' },
+      });
+
+      if (!response.ok) {
+        if (response.status === 429) {
+          await delay(backoffMs * Math.pow(2, i));
+          continue;
+        }
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      return (await response.json()) as T;
+    } catch (error) {
+      if (i === retries - 1) throw error;
+      await delay(backoffMs * Math.pow(2, i));
+    }
+  }
+  throw new Error('Max retries reached');
+}
+
 export async function getHistoricalUniPrice(date: string): Promise<number | null> {
   try {
     // Format date for CoinGecko: dd-mm-yyyy
@@ -10,22 +34,10 @@ export async function getHistoricalUniPrice(date: string): Promise<number | null
 
     const url = `${CONSTANTS.COINGECKO_API_URL}/coins/uniswap/history?date=${formattedDate}&localization=false`;
 
-    const response = await fetch(url, {
-      headers: {
-        Accept: 'application/json',
-      },
-    });
+    const data = await fetchJsonWithRetry<{
+      market_data?: { current_price?: { usd?: number } };
+    }>(url);
 
-    if (!response.ok) {
-      if (response.status === 429) {
-        // Rate limited by CoinGecko
-        console.warn('CoinGecko rate limit hit');
-        return null;
-      }
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const data = await response.json();
     return data.market_data?.current_price?.usd ?? null;
   } catch (error) {
     console.error(`Error fetching historical price for ${date}:`, error);
@@ -37,17 +49,7 @@ export async function getCurrentUniPriceFromCoinGecko(): Promise<number | null> 
   try {
     const url = `${CONSTANTS.COINGECKO_API_URL}/simple/price?ids=uniswap&vs_currencies=usd`;
 
-    const response = await fetch(url, {
-      headers: {
-        Accept: 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const data = await response.json();
+    const data = await fetchJsonWithRetry<{ uniswap?: { usd?: number } }>(url);
     return data.uniswap?.usd ?? null;
   } catch (error) {
     console.error('Error fetching current UNI price from CoinGecko:', error);

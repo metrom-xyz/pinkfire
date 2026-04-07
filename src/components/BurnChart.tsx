@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { useIsClient } from '@/lib/use-is-client';
 import {
   Line,
   XAxis,
@@ -42,6 +43,11 @@ interface CustomTooltipProps {
   viewMode: 'cumulative' | 'daily';
 }
 
+function getDailyUniForChain(point: ChartDataPoint, chainId: string): number {
+  const v = point[`daily_${chainId}`];
+  return typeof v === 'number' ? v : 0;
+}
+
 function CustomTooltip({ active, payload, showUsd, chains, viewMode }: CustomTooltipProps) {
   if (!active || !payload || !payload.length) return null;
 
@@ -61,8 +67,8 @@ function CustomTooltip({ active, payload, showUsd, chains, viewMode }: CustomToo
           // Show per-chain breakdown in daily stacked mode
           <>
             {chains.map((chain) => {
-              const val = (data as any)[`daily_${chain.id}`];
-              if (!val || val === 0) return null;
+              const val = getDailyUniForChain(data, chain.id);
+              if (!val) return null;
               return (
                 <p key={chain.id} className="text-white text-sm">
                   <span
@@ -123,11 +129,7 @@ function CustomTooltip({ active, payload, showUsd, chains, viewMode }: CustomToo
 export function BurnChart({ data, isLoading = false, chains = [], selectedChain }: BurnChartProps) {
   const [showUsd, setShowUsd] = useState(false);
   const [viewMode, setViewMode] = useState<'cumulative' | 'daily'>('daily');
-  const [isMounted, setIsMounted] = useState(false);
-
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
+  const isMounted = useIsClient();
 
   if (isLoading) {
     return (
@@ -167,7 +169,7 @@ export function BurnChart({ data, isLoading = false, chains = [], selectedChain 
   const showStacked = !selectedChain && chains.length > 0 && viewMode === 'daily';
   // Filter to only chains that have at least one non-zero data point
   const activeChains = showStacked
-    ? chains.filter((c) => data.some((d) => ((d as any)[`daily_${c.id}`] || 0) > 0))
+    ? chains.filter((c) => data.some((d) => getDailyUniForChain(d, c.id) > 0))
     : [];
   const hasChainBreakdown = activeChains.length > 0;
 

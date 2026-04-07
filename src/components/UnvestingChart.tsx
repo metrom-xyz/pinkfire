@@ -13,22 +13,58 @@ import {
 } from 'recharts';
 import { THEME } from '@/lib/constants';
 import { ChartDataPoint } from '@/types';
-import { useEffect } from 'react';
+import { useIsClient } from '@/lib/use-is-client';
 
 interface UnvestingChartProps {
     data: ChartDataPoint[];
 }
 
+interface UnvestingTooltipEntry {
+    name?: string;
+    value?: number;
+    color?: string;
+    fill?: string;
+}
+
+interface UnvestingTooltipProps {
+    active?: boolean;
+    payload?: ReadonlyArray<UnvestingTooltipEntry>;
+    label?: string | number;
+}
+
+function UnvestingTooltip({ active, payload, label }: UnvestingTooltipProps) {
+    if (!active || !payload?.length) return null;
+    return (
+        <div className="bg-[#191919] border border-[#2D2D2D] rounded-lg p-4 shadow-xl">
+            <p className="text-sm text-[#8B8B8B] mb-2">{label}</p>
+            <div className="space-y-2">
+                {payload.map((entry, idx) => {
+                    const fillStr = typeof entry.fill === 'string' ? entry.fill : '';
+                    const muted =
+                        entry.name === 'Accumulated Emission' ||
+                        entry.name === 'Daily Emission' ||
+                        fillStr === '#2D2D2D';
+                    const textColor = muted ? '#8B8B8B' : (entry.color ?? THEME.primary);
+                    return (
+                        <div key={entry.name ?? `series-${idx}`}>
+                            <p className="text-[#8B8B8B] text-xs">{entry.name}</p>
+                            <p className="font-mono text-sm" style={{ color: textColor }}>
+                                {(entry.value ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 })} UNI
+                            </p>
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
+    );
+}
+
 export function UnvestingChart({ data }: UnvestingChartProps) {
     const [viewMode, setViewMode] = useState<'cumulative' | 'daily'>('cumulative');
-    const [isMounted, setIsMounted] = useState(false);
+    const isMounted = useIsClient();
     const TARGET_ANNUAL_EMISSION = 20_000_000;
     const DAILY_EMISSION = TARGET_ANNUAL_EMISSION / 365;
     const EMISSION_START_DATE = '2026-01-01';
-
-    useEffect(() => {
-        setIsMounted(true);
-    }, []);
 
     // Process data to add emission values
     const processedData = data.map((point) => {
@@ -56,27 +92,6 @@ export function UnvestingChart({ data }: UnvestingChartProps) {
             daily_emission: dailyEmission,
         };
     });
-
-    const CustomTooltip = ({ active, payload, label }: any) => {
-        if (active && payload && payload.length) {
-            return (
-                <div className="bg-[#191919] border border-[#2D2D2D] rounded-lg p-4 shadow-xl">
-                    <p className="text-sm text-[#8B8B8B] mb-2">{label}</p>
-                    <div className="space-y-2">
-                        {payload.map((entry: any) => (
-                            <div key={entry.name}>
-                                <p className="text-[#8B8B8B] text-xs">{entry.name}</p>
-                                <p className="font-mono text-sm" style={{ color: entry.fill.includes('Accumulated Emission') || entry.fill === '#2D2D2D' ? '#8B8B8B' : entry.color }}>
-                                    {entry.value.toLocaleString(undefined, { maximumFractionDigits: 0 })} UNI
-                                </p>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            );
-        }
-        return null;
-    };
 
     return (
         <div className="bg-[#191919] rounded-xl p-6">
@@ -136,7 +151,16 @@ export function UnvestingChart({ data }: UnvestingChartProps) {
                                     axisLine={false}
                                 />
                                 <YAxis hide />
-                                <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#333', strokeWidth: 1 }} />
+                                <Tooltip
+                                    content={(props) => (
+                                        <UnvestingTooltip
+                                            active={props.active}
+                                            payload={props.payload as UnvestingTooltipEntry[] | undefined}
+                                            label={props.label}
+                                        />
+                                    )}
+                                    cursor={{ stroke: '#333', strokeWidth: 1 }}
+                                />
                                 <Area
                                     type="monotone"
                                     dataKey="emission"
@@ -166,7 +190,16 @@ export function UnvestingChart({ data }: UnvestingChartProps) {
                                     axisLine={false}
                                 />
                                 <YAxis hide />
-                                <Tooltip content={<CustomTooltip />} cursor={{ fill: 'transparent' }} />
+                                <Tooltip
+                                    content={(props) => (
+                                        <UnvestingTooltip
+                                            active={props.active}
+                                            payload={props.payload as UnvestingTooltipEntry[] | undefined}
+                                            label={props.label}
+                                        />
+                                    )}
+                                    cursor={{ fill: 'transparent' }}
+                                />
                                 <Bar
                                     dataKey="daily_emission"
                                     name="Daily Emission"
