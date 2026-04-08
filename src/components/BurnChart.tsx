@@ -47,6 +47,7 @@ function CustomTooltip({ active, payload, showUsd, chains, viewMode }: CustomToo
 
   const data = payload[0].payload;
   const formattedDate = new Date(data.date).toLocaleDateString('en-US', {
+    timeZone: 'UTC',
     weekday: 'short',
     month: 'short',
     day: 'numeric',
